@@ -34,6 +34,18 @@ def display_menu(stdscr, selected_row_idx, items):
     
     stdscr.refresh()
 
+def mute_speaker(speaker, mute=False):
+    speaker.group.mute = mute
+
+def play_radio_station(speaker, uri):
+    try:
+        speaker.clear_queue()
+        speaker.add_uri_to_queue(uri=uri)
+        speaker.play_from_queue(0)
+        mute_speaker(speaker, False)
+    except Exception as e:
+        print(f"Error: {e}")
+
 def main(stdscr):
     speaker = find_speaker(SONOS_SPEAKER_NAME)
     if speaker is None:
@@ -54,6 +66,8 @@ def main(stdscr):
     items = [station.title for station in radio_stations]
     selected_row_idx = 0
 
+    display_menu(stdscr, selected_row_idx, items)
+
     while True:
         key = stdscr.getch()
         
@@ -62,18 +76,9 @@ def main(stdscr):
         elif key == curses.KEY_DOWN and selected_row_idx < len(items) - 1:
             selected_row_idx += 1
         # play the selected radio station
-        elif key == ord('\n'):
-            stdscr.addstr(0, 0, f"You selected {items[selected_row_idx]}")
-            stdscr.refresh()            
-            stdscr.getch()
+        elif key == ord('\n'):            
             uri = radio_stations[selected_row_idx].get_uri()
-            speaker.clear_queue()
-            speaker.add_uri_to_queue(uri=uri)
-            speaker.play_from_queue(0)
-            speaker.set_mute(False)
-            #speaker.music_library.play_uri(uri=uri, force_radio=True)
-            #speaker.play()
-            break
+            play_radio_station(speaker, uri)
         
         display_menu(stdscr, selected_row_idx, items)
 
