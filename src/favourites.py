@@ -4,23 +4,23 @@ import curses
 # TODO: move this to a config file
 SONOS_SPEAKER_NAME = 'Rimshot HQ'
 
-def find_speaker(speaker_name):    
+def find_speaker(speaker_name):
     # sometimes the spaeker is not found on the first try
     for i in range(0, 100):
         zone_list = list(discover())
         for zone in zone_list:
             if (zone.player_name == speaker_name):
                 return zone
-    return None        
+    return None
 
 def display_menu(stdscr, selected_row_idx, items, speaker):
     stdscr.clear()
     stdscr.addstr(0,0,"Sonos Favorites:")
-    y = 2 
+    y = 2
 
     h, w = stdscr.getmaxyx()
-    
-    for idx, item in enumerate(items):        
+
+    for idx, item in enumerate(items):
         y = idx + 2
         x = 0
         if idx == selected_row_idx:
@@ -29,23 +29,23 @@ def display_menu(stdscr, selected_row_idx, items, speaker):
             stdscr.attroff(curses.A_BOLD)
         else:
             stdscr.addstr(y, x, item)
-    
+
     # put the status bar below the channel list
-    y,x = stdscr.getmaxyx()    
-    y -= 2    
+    y,x = stdscr.getmaxyx()
+    y -= 2
     stdscr.attron(curses.A_ITALIC | curses.A_BOLD)
     status = f"{speaker.get_current_transport_info()['current_transport_state']}"
-    status += f" - Volume: {speaker.group.volume}"    
+    status += f" - Volume: {speaker.group.volume}"
     stdscr.addstr(y, 0, status)
     stdscr.attroff(curses.A_ITALIC | curses.A_BOLD)
 
     # add a blinking message, above the status if the speaker is muted
     if (is_speaker_muted(speaker)):
         y -= 1
-        stdscr.attron(curses.A_BLINK | curses.A_BOLD)    
+        stdscr.attron(curses.A_BLINK | curses.A_BOLD)
         stdscr.addstr(y, 0, "-- MUTED --")
         stdscr.attroff(curses.A_BLINK | curses.A_BOLD)
-    
+
     stdscr.refresh()
 
 def mute_speaker(speaker, mute=False):
@@ -77,26 +77,26 @@ def main(stdscr):
     if search_results.number_returned == 0:
         print("No favourites found")
         exit(0)
-    
+
     # obtain the list of radio stations
     radio_stations = search_results._metadata['item_list']
     for station in radio_stations:
-        print(f"{station.favorite_nr} - {station.title}") 
-    
+        print(f"{station.favorite_nr} - {station.title}")
+
     items = [station.title for station in radio_stations]
     selected_row_idx = 0
 
-    display_menu(stdscr, selected_row_idx, items, speaker)    
+    display_menu(stdscr, selected_row_idx, items, speaker)
 
     while True:
         key = stdscr.getch()
-        
+
         if key == curses.KEY_UP and selected_row_idx > 0:
             selected_row_idx -= 1
         elif key == curses.KEY_DOWN and selected_row_idx < len(items) - 1:
             selected_row_idx += 1
         # play the selected radio station
-        elif key == ord('\n'):            
+        elif key == ord('\n'):
             uri = radio_stations[selected_row_idx].get_uri()
             play_radio_station(speaker, uri)
         elif key == ord('+'):
@@ -113,6 +113,6 @@ def main(stdscr):
                 speaker.pause()
             else:
                 speaker.play()
-        display_menu(stdscr, selected_row_idx, items, speaker)        
+        display_menu(stdscr, selected_row_idx, items, speaker)
 
 curses.wrapper(main)
