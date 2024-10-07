@@ -1,8 +1,5 @@
-from soco import SoCo
 from soco import discover
-from soco import music_library
 import curses
-
 
 # TODO: move this to a config file
 SONOS_SPEAKER_NAME = 'Rimshot HQ'
@@ -16,15 +13,16 @@ def find_speaker(speaker_name):
                 return zone
     return None        
 
-def display_menu(stdscr, selected_row_idx, items):
+def display_menu(stdscr, selected_row_idx, items, speaker):
     stdscr.clear()
+    stdscr.addstr(0,0,"Sonos Favorites:")
+    y = 2 
+
     h, w = stdscr.getmaxyx()
     
-    for idx, item in enumerate(items):
-        #x = w//2 - len(item)//2
-        #y = h//2 - len(items)//2 + idx
+    for idx, item in enumerate(items):        
+        y = idx + 2
         x = 0
-        y = idx
         if idx == selected_row_idx:
             stdscr.attron(curses.A_BOLD)
             stdscr.addstr(y, x, '< ' + item + ' >')
@@ -32,10 +30,32 @@ def display_menu(stdscr, selected_row_idx, items):
         else:
             stdscr.addstr(y, x, item)
     
+    # put the status bar below the channel list
+    y,x = stdscr.getmaxyx()    
+    y -= 2    
+    stdscr.attron(curses.A_ITALIC | curses.A_BOLD)
+    status = f"{speaker.get_current_transport_info()['current_transport_state']}"
+    status += f" - Volume: {speaker.group.volume}"    
+    stdscr.addstr(y, 0, status)
+    stdscr.attroff(curses.A_ITALIC | curses.A_BOLD)
+
+    # add a blinking message, above the status if the speaker is muted
+    if (is_speaker_muted(speaker)):
+        y -= 1
+        stdscr.attron(curses.A_BLINK | curses.A_BOLD)    
+        stdscr.addstr(y, 0, "-- MUTED --")
+        stdscr.attroff(curses.A_BLINK | curses.A_BOLD)
+    
     stdscr.refresh()
 
 def mute_speaker(speaker, mute=False):
     speaker.group.mute = mute
+
+def is_speaker_muted(speaker):
+    return speaker.group.mute
+
+def volume_speaker(speaker, volume):
+    speaker.group.volume = volume
 
 def play_radio_station(speaker, uri):
     try:
@@ -66,7 +86,7 @@ def main(stdscr):
     items = [station.title for station in radio_stations]
     selected_row_idx = 0
 
-    display_menu(stdscr, selected_row_idx, items)
+    display_menu(stdscr, selected_row_idx, items, speaker)    
 
     while True:
         key = stdscr.getch()
@@ -79,7 +99,20 @@ def main(stdscr):
         elif key == ord('\n'):            
             uri = radio_stations[selected_row_idx].get_uri()
             play_radio_station(speaker, uri)
-        
-        display_menu(stdscr, selected_row_idx, items)
+        elif key == ord('+'):
+            volume_speaker(speaker, speaker.group.volume + 1)
+        elif key == ord('-'):
+            volume_speaker(speaker, speaker.group.volume - 1)
+        # toggle mute
+        elif (key == ord('m') or key == ord('M')):
+            mute = False if is_speaker_muted(speaker) else True
+            mute_speaker(speaker, mute)
+        # toggle pause/play
+        elif key == ord('p') or key == ord('P'):
+            if speaker.get_current_transport_info()['current_transport_state'] == 'PLAYING':
+                speaker.pause()
+            else:
+                speaker.play()
+        display_menu(stdscr, selected_row_idx, items, speaker)        
 
 curses.wrapper(main)
